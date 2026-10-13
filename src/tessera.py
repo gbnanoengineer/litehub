@@ -19,25 +19,26 @@ import urllib.request
 import uuid
 from urllib.parse import urlparse
 
-from PyQt6.QtCore import (QBuffer, QByteArray, QCoreApplication, QModelIndex, QPointF, QProcess, QRectF, QSize, Qt,
+from PyQt6.QtCore import (QBuffer, QByteArray, QCoreApplication, QModelIndex, QObject, QPointF, QProcess, QRectF, QSize, Qt,
                           QTimer, QUrl, pyqtSignal)
-from PyQt6.QtGui import (QAction, QColor, QDesktopServices, QFont, QIcon, QImageReader, QKeySequence, QPainter,
+from PyQt6.QtGui import (QAction, QColor, QCursor, QDesktopServices, QFont, QIcon, QImageReader, QKeySequence, QPainter,
                          QPainterPath, QPalette, QPen, QPixmap, QShortcut)
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWebEngineCore import (QWebEngineDownloadRequest, QWebEnginePage, QWebEngineProfile,
                                    QWebEngineScript, QWebEngineSettings, QWebEnginePermission)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
                              QFormLayout, QFrame, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QMainWindow,
-                             QMenu, QMessageBox, QProgressBar, QPushButton, QScrollArea, QSpinBox,
-                             QStackedWidget, QSystemTrayIcon, QToolButton, QVBoxLayout, QWidget)
+                             QMenu, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSpinBox, QSplitter,
+                             QStackedWidget, QSystemTrayIcon, QTextBrowser, QToolButton, QTreeWidget, QTreeWidgetItem,
+                             QVBoxLayout, QWidget)
 
 APP_NAME = "Tessera"          # <- rename the app here (also see build.sh / packaging/)
 APP_SLUG = "tessera"
 APP_ID = "io.github.tessera"
 REPO = "gbnanoengineer/tessera"
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 ICON_NAME = os.environ.get("FLATPAK_ID", APP_SLUG)   # Flatpak installs icon/desktop file under its app id
 
 HOME = os.path.expanduser("~")
@@ -67,16 +68,16 @@ PRESETS = {
     "telegram": ("Telegram", "https://web.telegram.org/a/", "#26a5e4", ["telegram.org"], True),
     "slack": ("Slack", "https://app.slack.com/client", "#4a154b", ["slack.com", "slack-edge.com"], True),
     "discord": ("Discord", "https://discord.com/app", "#5865f2", ["discord.com", "discordapp.com"], True),
-    "gmail": ("Gmail", "https://mail.google.com/mail/", "#ea4335", ["google.com", "gmail.com", "gstatic.com"], True),
-    "outlook": ("Outlook", "https://outlook.office.com/mail/", "#0078d4",
-                ["microsoft.com", "microsoftonline.com", "live.com", "office.com", "office365.com"], True),
-    "teams": ("Teams", "https://teams.microsoft.com/", "#6264a7",
-              ["microsoft.com", "microsoftonline.com", "live.com", "office.com", "teams.microsoft.com"], True),
     "messenger": ("Messenger", "https://www.messenger.com/", "#0084ff", ["messenger.com", "facebook.com"], True),
     "instagram": ("Instagram", "https://www.instagram.com/", "#e4405f", ["instagram.com"], False),
-    "google-meet": ("Google Meet", "https://meet.google.com/", "#00897b", ["google.com"], False),
+    "gmail-imap": ("Gmail", "mail", "#ea4335", [], True),
+    "outlook-imap": ("Outlook", "mail", "#0078d4", [], True),
+    "yahoo-imap": ("Yahoo Mail", "mail", "#6001d2", [], True),
+    "icloud-imap": ("iCloud Mail", "mail", "#3693f3", [], True),
+    "imap": ("Other mail", "mail", "#546e7a", [], True),
     "custom": ("Custom site", "https://", "#546e7a", [], False),
 }
+REMOVED_PRESETS = ("gmail", "outlook", "teams", "google-meet")   # web versions dropped: Google/Microsoft block embedded sign-in
 # sign-in popups that must stay in-app even though they are not the service's own domain
 AUTH_HOSTS = ("accounts.google.com", "login.microsoftonline.com", "login.live.com", "appleid.apple.com",
               "facebook.com", "okta.com", "auth0.com", "github.com", "login.microsoft.com")
@@ -152,7 +153,7 @@ def initials(name):
     return (words[0][0] + (words[1][0] if len(words) > 1 else "")).upper()
 
 
-def make_service(preset, name=None, url=None, existing=()):
+def make_service(preset, name=None, url=None, existing=(), mail=None):
     label, purl, color, domains, keep = PRESETS[preset]
     if not name:
         n = sum(1 for s in existing if s.get("preset") == preset)
@@ -161,8 +162,11 @@ def make_service(preset, name=None, url=None, existing=()):
     if preset == "custom":
         host = urlparse(url).hostname or ""
         domains = [".".join(host.split(".")[-2:])] if host else []
-    return {"id": uuid.uuid4().hex[:8], "name": name, "preset": preset, "url": url,
-            "color": color, "domains": domains, "keep_alive": keep, "notifications": True}
+    svc = {"id": uuid.uuid4().hex[:8], "name": name, "preset": preset, "url": url,
+           "color": color, "domains": domains, "keep_alive": keep, "notifications": True}
+    if mail is not None:
+        svc.update({"type": "mail", "mail": mail, "url": ""})
+    return svc
 
 
 def human(n):
@@ -614,7 +618,6 @@ LOGOS = {
     "gmail": "M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z",
     "messenger": "M12 0C5.24 0 0 4.952 0 11.64c0 3.499 1.434 6.521 3.769 8.61a.96.96 0 0 1 .323.683l.065 2.135a.96.96 0 0 0 1.347.85l2.381-1.053a.96.96 0 0 1 .641-.046A13 13 0 0 0 12 23.28c6.76 0 12-4.952 12-11.64S18.76 0 12 0m6.806 7.44c.522-.03.971.567.63 1.094l-4.178 6.457a.707.707 0 0 1-.977.208l-3.87-2.504a.44.44 0 0 0-.49.007l-4.363 3.01c-.637.438-1.415-.317-.995-.966l4.179-6.457a.706.706 0 0 1 .977-.21l3.87 2.505c.15.097.344.094.491-.007l4.362-3.008a.7.7 0 0 1 .364-.13",
     "instagram": "M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077",
-    "google-meet": "M5.53 2.13 0 7.75h5.53zm.398 0v5.62h7.608v3.65l5.47-4.45c-.014-1.22.031-2.25-.025-3.46-.148-1.09-1.287-1.47-2.236-1.36zM23.1 4.32c-.802.295-1.358.995-2.047 1.49-2.506 2.05-4.982 4.12-7.468 6.19 3.025 2.59 6.04 5.18 9.065 7.76 1.218.671 1.428-.814 1.328-1.64v-13a.828.828 0 0 0-.877-.825zM.038 8.15v7.7h5.53v-7.7zm13.577 8.1H6.008v5.62c3.864-.006 7.737.011 11.58-.009 1.02-.07 1.618-1.12 1.468-2.07v-2.51l-5.47-4.68v3.65zm-13.577 0c.02 1.44-.041 2.88.033 4.31.162.948 1.158 1.43 2.047 1.31h3.464v-5.62z",
 }
 
 # simple original brand-style glyphs on a 24x24 grid; {fg} = glyph colour, {bg} = tile colour (for cut-outs)
@@ -629,11 +632,10 @@ GLYPHS = {
     "gmail": '<rect x="2.500" y="5" width="19" height="14" rx="2.200" fill="{fg}"/>'
              '<path d="M3.500 7 12 13.500 20.500 7" stroke="{bg}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
     "outlook": '<rect x="2.500" y="4" width="19" height="16" rx="2.500" fill="{fg}"/><circle cx="12" cy="12" r="4" stroke="{bg}" stroke-width="2.400" fill="none"/>',
-    "teams": '<rect x="2.500" y="4" width="19" height="16" rx="3" fill="{fg}"/><path d="M7.500 8.500h9M12 8.500v8" stroke="{bg}" stroke-width="2.600" stroke-linecap="round" fill="none"/>',
     "messenger": '<path fill="{fg}" d="M12 2.400c-5.300 0-9.400 3.900-9.400 9.100 0 2.700 1.200 5 3 6.600v3.400l3.200-1.800c.9.200 1.800.4 2.800.4 5.300 0 9.400-3.900 9.400-9.100S17.300 2.400 12 2.400z"/>'
                  '<path fill="{bg}" d="m6.500 14.300 3.500-3.700 2.400 2.400 3.600-2.500-3.600 4.500-2.400-2.300z"/>',
     "instagram": '<g fill="none" stroke="{fg}" stroke-width="2.100"><rect x="3.500" y="3.500" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/></g><circle cx="17.200" cy="6.800" r="1.200" fill="{fg}"/>',
-    "google-meet": '<rect x="2.500" y="6" width="12" height="12" rx="2.500" fill="{fg}"/><path fill="{fg}" d="m16.500 10.500 5-3.200v9.400l-5-3.200z"/>',
+    "mail": '<rect x="3" y="5.500" width="18" height="13" rx="2.200" fill="none" stroke="{fg}" stroke-width="1.900"/><path d="m3.800 7.500 8.200 6 8.200-6" fill="none" stroke="{fg}" stroke-width="1.900" stroke-linecap="round" stroke-linejoin="round"/>',
     "custom": '<g fill="none" stroke="{fg}" stroke-width="1.900" stroke-linecap="round"><circle cx="12" cy="12" r="8.500"/><path d="M3.500 12h17M12 3.500c3 3 3 14 0 17M12 3.500c-3 3-3 14 0 17"/></g>',
 }
 UI_ICONS = {
@@ -664,7 +666,11 @@ def ui_icon(name, color, size=22):
                       % (color, UI_ICONS[name]), size)
 
 
+GLYPH_ALIAS = {"gmail-imap": "gmail", "outlook-imap": "outlook", "yahoo-imap": "mail", "icloud-imap": "mail", "imap": "mail"}
+
+
 def glyph_svg(preset, fg, bg):
+    preset = GLYPH_ALIAS.get(preset, preset)
     if preset in LOGOS:
         body = '<path fill="%s" d="%s"/>' % (fg, LOGOS[preset])
     else:
@@ -915,6 +921,641 @@ class Prefs(QDialog):
         return out
 
 
+# ------------------------------------------------------------ mail (IMAP / SMTP)
+MAIL_SERVERS = {   # preset -> (imap host, port, smtp host, port, where to create an app password)
+    "gmail-imap": ("imap.gmail.com", 993, "smtp.gmail.com", 465, "https://myaccount.google.com/apppasswords"),
+    "outlook-imap": ("outlook.office365.com", 993, "smtp.office365.com", 587, "https://account.live.com/proofs/AppPassword"),
+    "yahoo-imap": ("imap.mail.yahoo.com", 993, "smtp.mail.yahoo.com", 465, "https://login.yahoo.com/account/security"),
+    "icloud-imap": ("imap.mail.me.com", 993, "smtp.mail.me.com", 587, "https://appleid.apple.com/account/manage"),
+    "imap": ("", 993, "", 465, ""),
+}
+
+
+class Secrets:
+    """App passwords: system keyring via secret-tool (libsecret); 0600 file only if that is unavailable."""
+    FILE = os.path.join(CONFIG_DIR, "secrets.json")
+
+    @staticmethod
+    def _tool():
+        return shutil.which("secret-tool")
+
+    @classmethod
+    def set(cls, sid, password):
+        if cls._tool():
+            r = subprocess.run([cls._tool(), "store", "--label=%s mail %s" % (APP_NAME, sid), "service", APP_SLUG, "account", sid],
+                               input=password.encode(), capture_output=True)
+            if r.returncode == 0:
+                return
+        data = load_json(cls.FILE, {})
+        data[sid] = password
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        fd = os.open(cls.FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f)
+
+    @classmethod
+    def get(cls, sid):
+        if cls._tool():
+            r = subprocess.run([cls._tool(), "lookup", "service", APP_SLUG, "account", sid], capture_output=True)
+            if r.returncode == 0 and r.stdout:
+                return r.stdout.decode()
+        return load_json(cls.FILE, {}).get(sid, "")
+
+    @classmethod
+    def delete(cls, sid):
+        if cls._tool():
+            subprocess.run([cls._tool(), "clear", "service", APP_SLUG, "account", sid], capture_output=True)
+        data = load_json(cls.FILE, {})
+        if data.pop(sid, None) is not None:
+            save_json(cls.FILE, data)
+
+
+def utf7_decode(s):
+    """IMAP modified UTF-7 folder names -> text."""
+    def dec(m):
+        t = m.group(1)
+        if not t:
+            return "&"
+        b = t.replace(",", "/")
+        b += "=" * (-len(b) % 4)
+        try:
+            return __import__("base64").b64decode(b).decode("utf-16-be")
+        except Exception:
+            return m.group(0)
+    return re.sub(r"&([^-]*)-", dec, s)
+
+
+def dhdr(value):
+    from email.header import decode_header, make_header
+    try:
+        return str(make_header(decode_header(value or ""))).replace("\n", " ").replace("\r", "")
+    except Exception:
+        return value or ""
+
+
+class ImapClient:
+    """One lazily-opened connection; every call is serialised and reconnects once on failure."""
+
+    def __init__(self, mail, sid):
+        self.m, self.sid, self.conn, self.lock, self.selected = mail, sid, None, threading.Lock(), None
+
+    def _connect(self):
+        import imaplib, ssl
+        c = imaplib.IMAP4_SSL(self.m["imap_host"], int(self.m["imap_port"]), ssl_context=ssl.create_default_context(), timeout=30)
+        c.login(self.m["user"], Secrets.get(self.sid))
+        self.conn, self.selected = c, None
+        return c
+
+    def run(self, fn):
+        with self.lock:
+            for attempt in (1, 2):
+                try:
+                    return fn(self.conn or self._connect())
+                except (OSError, EOFError) as e:
+                    self.conn = None
+                    if attempt == 2:
+                        raise e
+                except Exception as e:
+                    if "AUTH" in str(e).upper() or "LOGIN" in str(e).upper():
+                        self.conn = None
+                    raise
+
+    def folders(self):
+        def f(c):
+            typ, data = c.list()
+            out = []
+            for raw in data or []:
+                m = re.match(rb'\((?P<fl>[^)]*)\) (?:"(?P<d>[^"]*)"|NIL) (?P<n>.+)', raw if isinstance(raw, bytes) else raw[0])
+                if not m or b"\\Noselect" in m.group("fl"):
+                    continue
+                name = m.group("n").decode(errors="replace").strip()
+                if name.startswith('"') and name.endswith('"'):
+                    name = name[1:-1].replace('\\"', '"')
+                out.append((name, utf7_decode(name), m.group("fl").decode()))
+            return out
+        res = self.run(f)
+        res.sort(key=lambda x: (x[0].upper() != "INBOX", x[1].lower()))
+        return res
+
+    def _select(self, c, folder):
+        if self.selected != folder:
+            typ, _ = c.select('"%s"' % folder.replace('"', '\\"'))
+            if typ != "OK":
+                raise RuntimeError("cannot open folder " + folder)
+            self.selected = folder
+
+    def uids(self, folder):
+        def f(c):
+            self._select(c, folder)
+            typ, d = c.uid("SEARCH", None, "ALL")
+            return [int(x) for x in (d[0] or b"").split()]
+        return self.run(f)
+
+    def headers(self, folder, uids):
+        if not uids:
+            return []
+        def f(c):
+            self._select(c, folder)
+            typ, d = c.uid("FETCH", ",".join(map(str, uids)), "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+            import email
+            rows = []
+            for part in d:
+                if isinstance(part, tuple):
+                    meta = part[0].decode(errors="replace")
+                    uid = int(re.search(r"UID (\d+)", meta).group(1))
+                    seen = "\\Seen" in meta
+                    msg = email.message_from_bytes(part[1])
+                    rows.append({"uid": uid, "seen": seen, "from": dhdr(msg["From"]),
+                                 "subject": dhdr(msg["Subject"]) or "(no subject)", "date": msg["Date"] or ""})
+            return sorted(rows, key=lambda r: -r["uid"])
+        return self.run(f)
+
+    def fetch(self, folder, uid):
+        def f(c):
+            self._select(c, folder)
+            typ, d = c.uid("FETCH", str(uid), "(BODY.PEEK[])")
+            raw = next(p[1] for p in d if isinstance(p, tuple))
+            c.uid("STORE", str(uid), "+FLAGS", "(\\Seen)")
+            return raw
+        return self.run(f)
+
+    def set_seen(self, folder, uid, seen):
+        def f(c):
+            self._select(c, folder)
+            c.uid("STORE", str(uid), "+FLAGS" if seen else "-FLAGS", "(\\Seen)")
+        self.run(f)
+
+    def delete(self, folder, uid, trash):
+        def f(c):
+            self._select(c, folder)
+            if trash and trash != folder:
+                c.uid("COPY", str(uid), '"%s"' % trash)
+            c.uid("STORE", str(uid), "+FLAGS", "(\\Deleted)")
+            c.expunge()
+        self.run(f)
+
+    def unseen(self):
+        def f(c):
+            typ, d = c.status("INBOX", "(UNSEEN)")
+            return int(re.search(rb"UNSEEN (\d+)", d[0]).group(1))
+        return self.run(f)
+
+    def close(self):
+        with self.lock:
+            try:
+                if self.conn:
+                    self.conn.logout()
+            except Exception:
+                pass
+            self.conn = None
+
+
+def smtp_send(mail, sid, msg):
+    import smtplib, ssl
+    ctx, host, port = ssl.create_default_context(), mail["smtp_host"], int(mail["smtp_port"])
+    if port == 465:
+        s = smtplib.SMTP_SSL(host, port, context=ctx, timeout=30)
+    else:
+        s = smtplib.SMTP(host, port, timeout=30)
+        s.starttls(context=ctx)
+    with s:
+        s.login(mail["user"], Secrets.get(sid))
+        s.send_message(msg)
+
+
+def test_mail_login(mail, password):
+    """Raises on failure. Used when adding an account."""
+    import imaplib, ssl
+    c = imaplib.IMAP4_SSL(mail["imap_host"], int(mail["imap_port"]), ssl_context=ssl.create_default_context(), timeout=20)
+    try:
+        c.login(mail["user"], password)
+    finally:
+        try:
+            c.logout()
+        except Exception:
+            pass
+
+
+class Bridge(QObject):
+    """Run blocking work in a thread, deliver the result on the GUI thread."""
+    done = pyqtSignal(object, object, object)       # callback, result, error
+
+    def __init__(self):
+        super().__init__()
+        self.done.connect(lambda cb, res, err: cb(res, err))
+
+    def run(self, fn, cb):
+        def work():
+            try:
+                res, err = fn(), None
+            except Exception as e:      # noqa: BLE001 - shown to the user
+                res, err = None, e
+            self.done.emit(cb, res, err)
+        threading.Thread(target=work, daemon=True).start()
+
+
+class ComposeDialog(QDialog):
+    def __init__(self, mw, to="", subject="", body="", reply_to=None):
+        super().__init__(mw)
+        self.mw, self.reply_to, self.files = mw, reply_to, []
+        self.setWindowTitle("New message — %s" % mw.sv.svc["name"])
+        self.resize(640, 520)
+        lay = QVBoxLayout(self)
+        form = QFormLayout()
+        self.to, self.cc, self.subj = QLineEdit(to), QLineEdit(), QLineEdit(subject)
+        form.addRow("To", self.to)
+        form.addRow("Cc", self.cc)
+        form.addRow("Subject", self.subj)
+        lay.addLayout(form)
+        self.body = QPlainTextEdit(body)
+        lay.addWidget(self.body, 1)
+        self.att = QLabel("")
+        lay.addWidget(self.att)
+        row = QHBoxLayout()
+        b = QPushButton("Attach…")
+        b.clicked.connect(self.attach)
+        self.send_btn = QPushButton("Send")
+        self.send_btn.clicked.connect(self.send)
+        self.status = QLabel("")
+        row.addWidget(b)
+        row.addWidget(self.status, 1)
+        row.addWidget(self.send_btn)
+        lay.addLayout(row)
+
+    def attach(self):
+        for f in QFileDialog.getOpenFileNames(self, "Attach files")[0]:
+            self.files.append(f)
+        self.att.setText("Attachments: " + ", ".join(os.path.basename(f) for f in self.files))
+
+    def send(self):
+        from email.message import EmailMessage
+        import mimetypes
+        mail = self.mw.sv.svc["mail"]
+        if not self.to.text().strip():
+            self.status.setText("Add a recipient")
+            return
+        m = EmailMessage()
+        m["From"], m["To"], m["Subject"] = mail["user"], self.to.text().strip(), self.subj.text()
+        if self.cc.text().strip():
+            m["Cc"] = self.cc.text().strip()
+        if self.reply_to:
+            if self.reply_to.get("message-id"):
+                m["In-Reply-To"] = m["References"] = self.reply_to["message-id"]
+        m.set_content(self.body.toPlainText())
+        for f in self.files:
+            ctype = mimetypes.guess_type(f)[0] or "application/octet-stream"
+            main, sub = ctype.split("/", 1)
+            with open(f, "rb") as fh:
+                m.add_attachment(fh.read(), maintype=main, subtype=sub, filename=os.path.basename(f))
+        self.send_btn.setEnabled(False)
+        self.status.setText("Sending…")
+        self.mw.bridge.run(lambda: smtp_send(mail, self.mw.sv.id, m), self.sent)
+
+    def sent(self, res, err):
+        if err:
+            self.send_btn.setEnabled(True)
+            self.status.setText("Failed: %s" % err)
+        else:
+            self.accept()
+            self.mw.status("Message sent")
+
+
+class MailWidget(QWidget):
+    """Three-pane IMAP client: folders | message list / reader. HTML mail is shown with no scripts and no remote content."""
+    PAGE = 50
+
+    def __init__(self, sv):
+        super().__init__()
+        self.sv, self.hub, self.bridge = sv, sv.hub, Bridge()
+        self.client = ImapClient(sv.svc["mail"], sv.id)
+        self.folder, self.all_uids, self.shown, self.cur = "INBOX", [], 0, None
+        self.trash = None
+        self.zoom = 1.0
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        tb = QHBoxLayout()
+        tb.setContentsMargins(8, 6, 8, 6)
+        self.buttons = {}
+        for label, cb in (("✉ Compose", self.compose), ("↩ Reply", self.reply), ("⟳ Refresh", self.reload),
+                          ("● Mark unread", self.mark_unread), ("🗑 Delete", self.delete), ("More ▾", self.more)):
+            b = QPushButton(label)
+            b.setFlat(True)
+            b.clicked.connect(cb)
+            tb.addWidget(b)
+            self.buttons[label] = b
+        tb.addStretch(1)
+        self.statusl = QLabel("")
+        tb.addWidget(self.statusl)
+        lay.addLayout(tb)
+        split = QSplitter()
+        lay.addWidget(split, 1)
+        self.flist = QListWidget()
+        self.flist.setMaximumWidth(210)
+        self.flist.currentRowChanged.connect(self.pick_folder)
+        split.addWidget(self.flist)
+        right = QSplitter(Qt.Orientation.Vertical)
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["From", "Subject", "Date"])
+        self.tree.setRootIsDecorated(False)
+        self.tree.setUniformRowHeights(True)
+        self.tree.setColumnWidth(0, 220)
+        self.tree.setColumnWidth(1, 380)
+        self.tree.currentItemChanged.connect(self.pick_message)
+        right.addWidget(self.tree)
+        reader = QWidget()
+        rl = QVBoxLayout(reader)
+        rl.setContentsMargins(0, 0, 0, 0)
+        self.head = QLabel("")
+        self.head.setWordWrap(True)
+        self.head.setContentsMargins(10, 8, 10, 4)
+        rl.addWidget(self.head)
+        self.attrow = QHBoxLayout()
+        self.attrow.setContentsMargins(10, 0, 10, 0)
+        self.attrow.addStretch(1)
+        rl.addLayout(self.attrow)
+        self.view = QTextBrowser()
+        self.view.setOpenLinks(False)
+        self.view.setStyleSheet("QTextBrowser{background:#ffffff;color:#111111;}")
+        self.view.anchorClicked.connect(lambda u: open_url(u) if u.scheme() in ("http", "https", "mailto") else None)
+        rl.addWidget(self.view, 1)
+        right.addWidget(reader)
+        right.setSizes([260, 420])
+        split.addWidget(right)
+        split.setSizes([180, 900])
+        self.setStyleSheet("QTreeWidget::item{padding:5px 4px;} QListWidget::item{padding:7px 10px;} "
+                           "QPushButton{padding:5px 10px;}")
+        self.tree.setAlternatingRowColors(True)
+        self.timer = QTimer(self, interval=120000, timeout=self.poll)
+        self.timer.start()
+        self.status("Connecting…")
+        self.bridge.run(self.client.folders, self.got_folders)
+
+    # -- helpers --
+    def status(self, text):
+        self.statusl.setText(text)
+        QTimer.singleShot(6000, lambda: self.statusl.text() == text and self.statusl.setText(""))
+
+    def fail(self, err):
+        msg = str(err)
+        if "AUTHENTICATIONFAILED" in msg.upper() or "LOGIN" in msg.upper() or "Invalid credentials" in msg:
+            msg += " — check the app password (right-click the service > Change password…)"
+        self.status("Error: " + msg[:160])
+
+    # Hub-compatible bits (zoom / reload shortcuts)
+    def zoomFactor(self):
+        return self.zoom
+
+    def setZoomFactor(self, z):
+        self.zoom = z
+        f = self.view.font()
+        f.setPointSizeF(10 * z)
+        self.view.setFont(f)
+
+    def reload(self):
+        self.load_folder(self.folder)
+
+    def shutdown(self):
+        self.timer.stop()
+        threading.Thread(target=self.client.close, daemon=True).start()
+
+    # -- folders --
+    def got_folders(self, res, err):
+        if err:
+            return self.fail(err)
+        self.folders = res
+        self.flist.blockSignals(True)
+        self.flist.clear()
+        for raw, shown, flags in res:
+            self.flist.addItem(re.sub(r"^\[[^\]]+\]/", "", shown))
+            if "\\Trash" in flags or (self.trash is None and re.search(r"trash|deleted", raw, re.I)):
+                self.trash = raw
+        self.flist.blockSignals(False)
+        idx = next((i for i, f in enumerate(res) if f[0].upper() == "INBOX"), 0)
+        self.flist.setCurrentRow(idx)
+
+    def pick_folder(self, row):
+        if 0 <= row < len(self.folders):
+            self.folder = self.folders[row][0]
+            self.load_folder(self.folder)
+
+    def load_folder(self, folder):
+        self.status("Loading %s…" % utf7_decode(folder))
+        def work():
+            return self.client.uids(folder)
+        self.bridge.run(work, lambda res, err: self.got_uids(folder, res, err))
+
+    def got_uids(self, folder, res, err):
+        if err:
+            return self.fail(err)
+        if folder != self.folder:
+            return
+        self.all_uids, self.shown = sorted(res), 0
+        self.tree.clear()
+        self.more_page(first=True)
+
+    def more_page(self, first=False):
+        end = len(self.all_uids) - self.shown
+        chunk = self.all_uids[max(0, end - self.PAGE):end]
+        self.shown += len(chunk)
+        folder = self.folder
+        self.bridge.run(lambda: self.client.headers(folder, chunk), lambda res, err: self.got_headers(folder, res, err))
+
+    def got_headers(self, folder, res, err):
+        if err:
+            return self.fail(err)
+        if folder != self.folder:
+            return
+        for r in res:
+            it = QTreeWidgetItem([r["from"], r["subject"], r["date"][:22]])
+            it.setData(0, Qt.ItemDataRole.UserRole, r)
+            if not r["seen"]:
+                f = it.font(0)
+                f.setBold(True)
+                for c in range(3):
+                    it.setFont(c, f)
+            self.tree.addTopLevelItem(it)
+        self.status("%d of %d messages" % (self.tree.topLevelItemCount(), len(self.all_uids)))
+        if self.folder.upper() == "INBOX":
+            self.sv.set_unread(sum(1 for i in range(self.tree.topLevelItemCount())
+                                   if not self.tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)["seen"]))
+
+    def more(self):
+        m = QMenu(self)
+        if self.shown < len(self.all_uids):
+            m.addAction("Load older messages", lambda: self.more_page())
+        m.addAction("Mark read", self.mark_read)
+        m.exec(QCursor.pos())
+
+    # -- reading --
+    def pick_message(self, item, _prev=None):
+        if not item:
+            return
+        r = item.data(0, Qt.ItemDataRole.UserRole)
+        self.cur = {"item": item, "uid": r["uid"], "folder": self.folder, "row": r}
+        self.head.setText("Loading…")
+        self.view.clear()
+        folder, uid = self.folder, r["uid"]
+        self.bridge.run(lambda: self.client.fetch(folder, uid), lambda res, err: self.show_message(uid, res, err))
+
+    def show_message(self, uid, raw, err):
+        if err:
+            return self.fail(err)
+        if not self.cur or self.cur["uid"] != uid:
+            return
+        import email, email.policy, html as htmllib
+        msg = email.message_from_bytes(raw, policy=email.policy.default)
+        self.cur["message-id"] = (msg["Message-ID"] or "").strip()
+        self.cur["msg"] = msg
+        frm, to, date, subj = dhdr(str(msg["From"] or "")), dhdr(str(msg["To"] or "")), str(msg["Date"] or ""), dhdr(str(msg["Subject"] or ""))
+        self.head.setText("<b style='font-size:15px'>%s</b><br>From: %s<br>To: %s<br><span style='color:gray'>%s</span>"
+                          % tuple(htmllib.escape(x) for x in (subj or "(no subject)", frm, to, date)))
+        body = msg.get_body(preferencelist=("html", "plain"))
+        text = ""
+        if body is not None:
+            try:
+                text = body.get_content()
+            except Exception:
+                text = ""
+            if body.get_content_type() == "text/plain":
+                text = "<pre style='white-space:pre-wrap;font-family:sans-serif'>%s</pre>" % htmllib.escape(text)
+            else:       # drop remote images / scripts: QTextBrowser won't fetch them, this just avoids broken icons
+                text = re.sub(r"(?is)<(script|style|iframe|object|embed)\b.*?</\1>", "", text)
+        self.view.setHtml(text or "<i>(empty message)</i>")
+        # attachments
+        while self.attrow.count() > 1:
+            w = self.attrow.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        for part in msg.iter_attachments():
+            name = part.get_filename() or "attachment"
+            b = QPushButton("📎 %s" % name)
+            b.clicked.connect(lambda _c, p=part, n=name: self.save_attachment(p, n))
+            self.attrow.insertWidget(self.attrow.count() - 1, b)
+        # mark as read in UI
+        item = self.cur["item"]
+        f = item.font(0)
+        f.setBold(False)
+        for c in range(3):
+            item.setFont(c, f)
+        if not self.cur["row"]["seen"]:
+            self.cur["row"]["seen"] = True
+            if self.folder.upper() == "INBOX":
+                self.sv.set_unread(max(0, self.sv.unread - 1))
+
+    def save_attachment(self, part, name):
+        d = self.hub.downloads.dest_dir()
+        base, ext = os.path.splitext(os.path.basename(name))
+        path, i = os.path.join(d, base + ext), 1
+        while os.path.exists(path):
+            path = os.path.join(d, "%s (%d)%s" % (base, i, ext))
+            i += 1
+        with open(path, "wb") as fh:
+            fh.write(part.get_payload(decode=True) or b"")
+        self.hub.notifier.notify("Attachment saved", os.path.basename(path), [("open", "Open"), ("folder", "Show in folder")],
+                                 lambda a, p=path: open_local(p) if a in ("first", "open") else open_local(os.path.dirname(p)))
+        self.status("Saved " + os.path.basename(path))
+
+    # -- actions --
+    def compose(self):
+        ComposeDialog(self).exec()
+
+    def reply(self):
+        if not self.cur or "msg" not in self.cur:
+            return
+        msg = self.cur["msg"]
+        subj = dhdr(str(msg["Subject"] or ""))
+        body = msg.get_body(preferencelist=("plain",))
+        quoted = "\n".join("> " + l for l in (body.get_content() if body else "").splitlines())
+        who = str(msg["Reply-To"] or msg["From"] or "")
+        ComposeDialog(self, to=who, subject=subj if subj.lower().startswith("re:") else "Re: " + subj,
+                      body="\n\nOn %s, %s wrote:\n%s" % (msg["Date"], msg["From"], quoted),
+                      reply_to={"message-id": self.cur.get("message-id")}).exec()
+
+    def mark_unread(self):
+        if not self.cur:
+            return
+        c = self.cur
+        self.bridge.run(lambda: self.client.set_seen(c["folder"], c["uid"], False), lambda r, e: self.fail(e) if e else None)
+        f = c["item"].font(0)
+        f.setBold(True)
+        for k in range(3):
+            c["item"].setFont(k, f)
+        c["row"]["seen"] = False
+        if self.folder.upper() == "INBOX":
+            self.sv.set_unread(self.sv.unread + 1)
+
+    def mark_read(self):
+        for i in range(self.tree.topLevelItemCount()):
+            r = self.tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
+            if not r["seen"]:
+                self.bridge.run(lambda u=r["uid"], fo=self.folder: self.client.set_seen(fo, u, True), lambda res, e: None)
+        self.status("Marked as read")
+        self.sv.set_unread(0)
+        QTimer.singleShot(1500, self.reload)
+
+    def delete(self):
+        if not self.cur:
+            return
+        c = self.cur
+        self.bridge.run(lambda: self.client.delete(c["folder"], c["uid"], self.trash), self.deleted)
+
+    def deleted(self, res, err):
+        if err:
+            return self.fail(err)
+        it = self.tree.currentItem()
+        if it:
+            self.tree.takeTopLevelItem(self.tree.indexOfTopLevelItem(it))
+        self.cur = None
+        self.view.clear()
+        self.head.setText("")
+        self.status("Deleted")
+
+    # -- new-mail polling (also drives the sidebar badge + notification) --
+    def poll(self):
+        prev = self.sv.unread
+        def work():
+            n = self.client.unseen()
+            newest = None
+            if n > prev:
+                uids = self.client.uids("INBOX")[-1:]
+                newest = (self.client.headers("INBOX", uids) or [None])[0]
+            return n, newest
+        self.bridge.run(work, lambda res, err: self.polled(prev, res, err))
+
+    def polled(self, prev, res, err):
+        if err:
+            return
+        n, newest = res
+        self.sv.set_unread(n)
+        if n > prev and newest and self.hub.cfg["notifications"] and self.sv.svc.get("notifications", True):
+            self.hub.notifier.notify("%s — new mail" % self.sv.svc["name"], "%s\n%s" % (newest["from"], newest["subject"]),
+                                     [("open", "Open")], lambda _a: self.hub.show_service(self.sv.id))
+        if self.folder.upper() == "INBOX" and n != prev:
+            self.reload()
+
+
+class MailServiceView(ServiceView):
+    """Same slot in the sidebar as a web service, but a native mail widget."""
+
+    def load(self):
+        if self.view:
+            return
+        self.view = MailWidget(self)
+        self.hub.stack.addWidget(self.view)
+        self.view.setZoomFactor(float(self.hub.cfg["zoom"]))
+        self.hub.refresh_button(self)
+
+    def hibernate(self):
+        if not self.view:
+            return
+        self.view.shutdown()
+        self.hub.stack.removeWidget(self.view)
+        self.view.deleteLater()
+        self.view = None
+        self.set_unread(0)
+        self.hub.refresh_button(self)
+
+
 class Hub(QMainWindow):
     update_found = pyqtSignal(str, str)
 
@@ -1016,6 +1657,8 @@ class Hub(QMainWindow):
             self.w_grid.addWidget(b, n // 5, n % 5)
 
     def add_preset(self, key):
+        if key in MAIL_SERVERS:
+            return self.add_service_dialog(key)
         svc = make_service(key, existing=self.cfg["services"])
         self.cfg["services"].append(svc)
         self.save()
@@ -1103,7 +1746,9 @@ class Hub(QMainWindow):
                 w.deleteLater()
         self.buttons = {}
         for s in services:
-            sv = self.views.setdefault(s["id"], ServiceView(self, s))
+            if s["id"] not in self.views:
+                self.views[s["id"]] = (MailServiceView if s.get("type") == "mail" else ServiceView)(self, s)
+            sv = self.views[s["id"]]
             sv.svc = s
             b = SvcButton(self)
             b.clicked.connect(lambda i=s["id"]: self.select(i))
@@ -1142,7 +1787,8 @@ class Hub(QMainWindow):
         self.stack.setCurrentWidget(sv.view)
         if prev and prev is not sv and prev.page and not prev.svc.get("keep_alive"):
             prev.page.setLifecycleState(QWebEnginePage.LifecycleState.Frozen)
-        sv.page.setLifecycleState(QWebEnginePage.LifecycleState.Active)
+        if sv.page:
+            sv.page.setLifecycleState(QWebEnginePage.LifecycleState.Active)
         sv.view.setFocus()
         for v in (prev, sv):
             if v:
@@ -1298,8 +1944,12 @@ class Hub(QMainWindow):
         a.toggled.connect(lambda v: self.set_service_notifications(s, v))
         m.addSeparator()
         m.addAction("Rename…", lambda: self.rename_service(sid))
-        m.addAction("Custom user agent…", lambda: self.set_user_agent(sid))
-        m.addAction("Edit this service's CSS", lambda: self.open_path(os.path.join(SVC_STYLE_DIR, sid + ".css"), CSS_TEMPLATE))
+        if s.get("type") == "mail":
+            m.addAction("Change password…", lambda: self.change_password(sid))
+        else:
+            m.addAction("Custom user agent…", lambda: self.set_user_agent(sid))
+        if s.get("type") != "mail":
+            m.addAction("Edit this service's CSS", lambda: self.open_path(os.path.join(SVC_STYLE_DIR, sid + ".css"), CSS_TEMPLATE))
         m.addAction("Move up", lambda: self.move_service(sid, -1))
         m.addAction("Move down", lambda: self.move_service(sid, 1))
         m.addAction("Remove…", lambda: self.remove_service(sid))
@@ -1319,6 +1969,13 @@ class Hub(QMainWindow):
             s["name"] = text.strip()
             self.save()
             self.rebuild()
+
+    def change_password(self, sid):
+        text, ok = QInputDialog.getText(self, "Change password", "New app password:", QLineEdit.EchoMode.Password)
+        if ok and text:
+            Secrets.set(sid, text)
+            self.views[sid].hibernate()
+            self.select(sid)
 
     def set_user_agent(self, sid):
         """Per-service user-agent override (empty = engine default). Your call; use only if a site rejects the engine."""
@@ -1347,6 +2004,8 @@ class Hub(QMainWindow):
                                ) != QMessageBox.StandardButton.Ok:
             return
         self.views[sid].hibernate()
+        if s.get("type") == "mail":
+            Secrets.delete(sid)
         self.cfg["services"] = [x for x in self.cfg["services"] if x["id"] != sid]
         for base in (DATA_DIR, CACHE_DIR):
             shutil.rmtree(os.path.join(base, "services", sid), ignore_errors=True)
@@ -1359,11 +2018,11 @@ class Hub(QMainWindow):
         else:
             self.stack.setCurrentWidget(self.welcome)
 
-    def add_service_dialog(self):
+    def add_service_dialog(self, preselect=None):
         self.show_window()
         dlg = QDialog(self)
         dlg.setWindowTitle("Add service")
-        dlg.resize(560, 470)
+        dlg.resize(580, 560)
         lay = QVBoxLayout(dlg)
         keys = list(PRESETS)
         lst = QListWidget()
@@ -1374,37 +2033,95 @@ class Hub(QMainWindow):
         lst.setMovement(QListView.Movement.Static)
         lst.setSpacing(4)
         lst.setFrameShape(QFrame.Shape.NoFrame)
+        lst.setMaximumHeight(250)
         for k in keys:
             svc = {"preset": k, "color": PRESETS[k][2], "id": k}
             it = QListWidgetItem(QIcon(tile_pixmap(svc, 52, self.fav_pixmap(svc))), PRESETS[k][0])
             it.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
             lst.addItem(it)
-        lst.setCurrentRow(0)
-        lay.addWidget(lst, 1)
+        lst.setCurrentRow(keys.index(preselect) if preselect in keys else 0)
+        lay.addWidget(lst)
         form = QFormLayout()
-        name, url = QLineEdit(), QLineEdit(PRESETS[keys[0]][1])
+        name, url = QLineEdit(), QLineEdit()
         name.setPlaceholderText("auto — e.g. Gmail work")
-        lst.currentRowChanged.connect(lambda i: url.setText(PRESETS[keys[i]][1]) if i >= 0 else None)
+        email, pw = QLineEdit(), QLineEdit()
+        pw.setEchoMode(QLineEdit.EchoMode.Password)
+        ih, ip, sh, sp = QLineEdit(), QSpinBox(), QLineEdit(), QSpinBox()
+        for sb in (ip, sp):
+            sb.setRange(1, 65535)
+        help_l = QLabel("")
+        help_l.setWordWrap(True)
+        help_l.setOpenExternalLinks(True)
+        help_l.setStyleSheet("color:%s" % self.t["muted"])
+        web_rows = [("URL", url)]
+        mail_rows = [("Email address", email), ("App password", pw), ("IMAP server", ih), ("IMAP port", ip),
+                     ("SMTP server", sh), ("SMTP port", sp)]
         form.addRow("Name", name)
-        form.addRow("URL", url)
+        rows = {}
+        for label, w in web_rows + mail_rows:
+            form.addRow(label, w)
+            rows[label] = (form.labelForField(w), w)
+        form.addRow(help_l)
         lay.addLayout(form)
-        note = QLabel("Every added service has its own separate login, so you can add the same one several times.")
-        note.setWordWrap(True)
-        note.setStyleSheet("color:%s" % self.t["muted"])
-        lay.addWidget(note)
+
+        def changed(i):
+            if i < 0:
+                return
+            key = keys[i]
+            is_mail = key in MAIL_SERVERS
+            for label, w in web_rows:
+                rows[label][0].setVisible(not is_mail)
+                w.setVisible(not is_mail)
+            for label, w in mail_rows:
+                rows[label][0].setVisible(is_mail)
+                w.setVisible(is_mail)
+            if is_mail:
+                h, p, sh_, sp_, link = MAIL_SERVERS[key]
+                ih.setText(h)
+                ip.setValue(p)
+                sh.setText(sh_)
+                sp.setValue(sp_)
+                help_l.setText("Sign in with an <b>app password</b> (not your normal password; needs 2-step verification)."
+                               + (' <a href="%s">Create one here</a>.' % link if link else "")
+                               + " It is stored in your system keyring. Work/school accounts may have IMAP disabled by the admin.")
+            else:
+                url.setText(PRESETS[key][1])
+                help_l.setText("Every added service has its own separate login, so you can add the same one several times.")
+        lst.currentRowChanged.connect(changed)
+        changed(lst.currentRow())
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         bb.accepted.connect(dlg.accept)
         bb.rejected.connect(dlg.reject)
         lay.addWidget(bb)
-        if dlg.exec():
-            u = url.text().strip()
-            if u and "://" not in u:
-                u = "https://" + u
-            svc = make_service(keys[max(0, lst.currentRow())], name.text().strip() or None, u or None, self.cfg["services"])
+        while dlg.exec():
+            key = keys[max(0, lst.currentRow())]
+            if key in MAIL_SERVERS:
+                mail = {"user": email.text().strip(), "imap_host": ih.text().strip(), "imap_port": ip.value(),
+                        "smtp_host": sh.text().strip(), "smtp_port": sp.value()}
+                if not (mail["user"] and pw.text() and mail["imap_host"] and mail["smtp_host"]):
+                    QMessageBox.warning(dlg, "Missing details", "Enter the email address, app password and both servers.")
+                    continue
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                try:
+                    test_mail_login(mail, pw.text())
+                except Exception as e:      # noqa: BLE001 - shown to the user
+                    QApplication.restoreOverrideCursor()
+                    QMessageBox.warning(dlg, "Could not sign in", str(e))
+                    continue
+                QApplication.restoreOverrideCursor()
+                svc = make_service(key, name.text().strip() or mail["user"], None, self.cfg["services"], mail=mail)
+                Secrets.set(svc["id"], pw.text())
+            else:
+                u = url.text().strip()
+                if u and "://" not in u:
+                    u = "https://" + u
+                svc = make_service(key, name.text().strip() or None, u or None, self.cfg["services"])
             self.cfg["services"].append(svc)
             self.save()
             self.rebuild()
             self.select(svc["id"])
+            break
+
     def show_prefs(self):
         self.show_window()
         dlg = Prefs(self)
@@ -1525,6 +2242,13 @@ def main():
     migrate_legacy()
     cfg = json.loads(json.dumps(DEFAULTS))
     cfg.update(load_json(CONFIG_FILE, {}))
+    gone = [x for x in cfg["services"] if x.get("preset") in REMOVED_PRESETS]
+    if gone:                                  # web Gmail/Outlook/Teams/Meet were removed: clean their data
+        cfg["services"] = [x for x in cfg["services"] if x not in gone]
+        for x in gone:
+            for base in (DATA_DIR, CACHE_DIR):
+                shutil.rmtree(os.path.join(base, "services", x["id"]), ignore_errors=True)
+        save_json(CONFIG_FILE, cfg)
     apply_chromium_flags(cfg)
     if args.debug:
         os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "9222"

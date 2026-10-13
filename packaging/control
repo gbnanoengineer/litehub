@@ -6,7 +6,7 @@ Architecture: all
 Conflicts: litehub
 Replaces: litehub
 Depends: python3 (>= 3.10), python3-venv, ca-certificates, libnotify-bin, xdg-utils, libnss3, libnspr4, libxkbcommon0, libxkbcommon-x11-0, libxkbfile1, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libxrender1, libxshmfence1, libdbus-1-3, libegl1, libgl1, libfontconfig1, libpulse0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libasound2t64 | libasound2
-Recommends: xdg-desktop-portal, pipewire, gnome-shell-extension-appindicator
+Recommends: libsecret-tools, xdg-desktop-portal, pipewire, gnome-shell-extension-appindicator
 Suggests: python3-pyqt6, python3-pyqt6.qtwebengine
 Maintainer: gbnanoengineer <gbnanoengineer@users.noreply.github.com>
 Description: Lightweight all-in-one messenger hub (WhatsApp, Slack, Discord, Gmail, ...)
