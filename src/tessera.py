@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-"""LiteHub - lightweight all-in-one messenger hub (Qt + Chromium engine).
+"""Tessera - lightweight all-in-one messenger hub (Qt + Chromium engine).
 
 WhatsApp (linked device), Telegram, Slack, Discord, Gmail, Outlook, Teams...
 Every service instance has its own isolated login, so you can run several
 WhatsApps, Gmails, Outlooks side by side. Calls, video and screen sharing work
-(Chromium WebRTC). Config: ~/.config/litehub/
+(Chromium WebRTC). Config: ~/.config/tessera/
 """
 import argparse
 import json
@@ -31,10 +31,10 @@ from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialo
                              QMenu, QMessageBox, QProgressBar, QPushButton, QScrollArea, QSpinBox,
                              QStackedWidget, QSystemTrayIcon, QToolButton, QVBoxLayout, QWidget)
 
-APP_NAME = "LiteHub"          # <- rename the app here (also see build.sh / packaging/)
-APP_SLUG = "litehub"
-APP_ID = "io.github.litehub"
-VERSION = "0.4.0"
+APP_NAME = "Tessera"          # <- rename the app here (also see build.sh / packaging/)
+APP_SLUG = "tessera"
+APP_ID = "io.github.tessera"
+VERSION = "0.5.0"
 ICON_NAME = os.environ.get("FLATPAK_ID", APP_SLUG)   # Flatpak installs icon/desktop file under its app id
 
 HOME = os.path.expanduser("~")
@@ -47,19 +47,30 @@ JS_FILE = os.path.join(CONFIG_DIR, "custom.js")
 SVC_STYLE_DIR = os.path.join(CONFIG_DIR, "services")   # <id>.css / <id>.js per service
 STATE_FILE = os.path.join(CONFIG_DIR, "state.json")
 
+def migrate_legacy():
+    """Move LiteHub data (logins, config) to the Tessera folders on first run."""
+    for base_new in (CONFIG_DIR, DATA_DIR, CACHE_DIR):
+        old = os.path.join(os.path.dirname(base_new), "lite" + "hub")
+        if os.path.isdir(old) and not os.path.exists(base_new):
+            try:
+                shutil.move(old, base_new)
+            except OSError as e:
+                print("migration failed:", e, file=sys.stderr)
+
+
 # key: (label, url, colour, in-app link domains, keep running in background)
 PRESETS = {
-    "whatsapp": ("WhatsApp", "https://web.whatsapp.com/", "#128c7e", ["whatsapp.com", "whatsapp.net"], True),
-    "telegram": ("Telegram", "https://web.telegram.org/a/", "#229ed9", ["telegram.org"], True),
+    "whatsapp": ("WhatsApp", "https://web.whatsapp.com/", "#25d366", ["whatsapp.com", "whatsapp.net"], True),
+    "telegram": ("Telegram", "https://web.telegram.org/a/", "#26a5e4", ["telegram.org"], True),
     "slack": ("Slack", "https://app.slack.com/client", "#4a154b", ["slack.com", "slack-edge.com"], True),
     "discord": ("Discord", "https://discord.com/app", "#5865f2", ["discord.com", "discordapp.com"], True),
-    "gmail": ("Gmail", "https://mail.google.com/mail/", "#d93025", ["google.com", "gmail.com", "gstatic.com"], True),
+    "gmail": ("Gmail", "https://mail.google.com/mail/", "#ea4335", ["google.com", "gmail.com", "gstatic.com"], True),
     "outlook": ("Outlook", "https://outlook.office.com/mail/", "#0078d4",
                 ["microsoft.com", "microsoftonline.com", "live.com", "office.com", "office365.com"], True),
     "teams": ("Teams", "https://teams.microsoft.com/", "#6264a7",
               ["microsoft.com", "microsoftonline.com", "live.com", "office.com", "teams.microsoft.com"], True),
     "messenger": ("Messenger", "https://www.messenger.com/", "#0084ff", ["messenger.com", "facebook.com"], True),
-    "instagram": ("Instagram", "https://www.instagram.com/", "#c13584", ["instagram.com"], False),
+    "instagram": ("Instagram", "https://www.instagram.com/", "#e4405f", ["instagram.com"], False),
     "google-meet": ("Google Meet", "https://meet.google.com/", "#00897b", ["google.com"], False),
     "custom": ("Custom site", "https://", "#546e7a", [], False),
 }
@@ -495,7 +506,7 @@ class ServiceView:
         src = "\n".join(j for j in js if j.strip())
         if src.strip():
             sc = QWebEngineScript()
-            sc.setName("litehub-custom")
+            sc.setName("tessera-custom")
             sc.setSourceCode(src)
             sc.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
             sc.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
@@ -590,6 +601,17 @@ THEMES = {
                   accent="#2563eb", hover="#d9e0e8", border="#d0d7de"),
 }
 DPR = 1.0
+# Brand logo paths from Simple Icons (CC0, https://simpleicons.org); Outlook/Teams are drawn (not in that set)
+LOGOS = {
+    "whatsapp": "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z",
+    "telegram": "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z",
+    "slack": "M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z",
+    "discord": "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z",
+    "gmail": "M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z",
+    "messenger": "M12 0C5.24 0 0 4.952 0 11.64c0 3.499 1.434 6.521 3.769 8.61a.96.96 0 0 1 .323.683l.065 2.135a.96.96 0 0 0 1.347.85l2.381-1.053a.96.96 0 0 1 .641-.046A13 13 0 0 0 12 23.28c6.76 0 12-4.952 12-11.64S18.76 0 12 0m6.806 7.44c.522-.03.971.567.63 1.094l-4.178 6.457a.707.707 0 0 1-.977.208l-3.87-2.504a.44.44 0 0 0-.49.007l-4.363 3.01c-.637.438-1.415-.317-.995-.966l4.179-6.457a.706.706 0 0 1 .977-.21l3.87 2.505c.15.097.344.094.491-.007l4.362-3.008a.7.7 0 0 1 .364-.13",
+    "instagram": "M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077",
+    "google-meet": "M5.53 2.13 0 7.75h5.53zm.398 0v5.62h7.608v3.65l5.47-4.45c-.014-1.22.031-2.25-.025-3.46-.148-1.09-1.287-1.47-2.236-1.36zM23.1 4.32c-.802.295-1.358.995-2.047 1.49-2.506 2.05-4.982 4.12-7.468 6.19 3.025 2.59 6.04 5.18 9.065 7.76 1.218.671 1.428-.814 1.328-1.64v-13a.828.828 0 0 0-.877-.825zM.038 8.15v7.7h5.53v-7.7zm13.577 8.1H6.008v5.62c3.864-.006 7.737.011 11.58-.009 1.02-.07 1.618-1.12 1.468-2.07v-2.51l-5.47-4.68v3.65zm-13.577 0c.02 1.44-.041 2.88.033 4.31.162.948 1.158 1.43 2.047 1.31h3.464v-5.62z",
+}
 
 # simple original brand-style glyphs on a 24x24 grid; {fg} = glyph colour, {bg} = tile colour (for cut-outs)
 GLYPHS = {
@@ -639,7 +661,10 @@ def ui_icon(name, color, size=22):
 
 
 def glyph_svg(preset, fg, bg):
-    body = GLYPHS.get(preset, GLYPHS["custom"]).format(fg=fg, bg=bg)
+    if preset in LOGOS:
+        body = '<path fill="%s" d="%s"/>' % (fg, LOGOS[preset])
+    else:
+        body = GLYPHS.get(preset, GLYPHS["custom"]).format(fg=fg, bg=bg)
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">%s</svg>' % body
 
 
@@ -662,12 +687,18 @@ def tile_pixmap(svc, size, fav=None):
         w, h = scaled.width() / DPR, scaled.height() / DPR
         p.drawPixmap(QPointF((size - w) / 2, (size - h) / 2), scaled)
     else:
-        p.fillPath(path, QColor(svc["color"]))
-        g = render_svg(glyph_svg(svc.get("preset", "custom"), "#ffffff", svc["color"]), size * 0.62)
-        o = size * 0.19
+        color = brand_color(svc)
+        p.fillPath(path, QColor(color))
+        g = render_svg(glyph_svg(svc.get("preset", "custom"), "#ffffff", color), size * 0.58)
+        o = size * 0.21
         p.drawPixmap(QPointF(o, o), g)
     p.end()
     return pm
+
+
+def brand_color(svc):
+    pr = svc.get("preset")
+    return PRESETS[pr][2] if pr in PRESETS and pr != "custom" else svc["color"]
 
 
 def fav_key(svc):
@@ -1009,6 +1040,8 @@ class Hub(QMainWindow):
 
     # -- favicons: the real site icon, cached so it also shows while the service sleeps --
     def fav_pixmap(self, svc):
+        if svc.get("preset") != "custom":      # known services use their fixed brand logo (tab icons change, e.g. unread counts)
+            return None
         key = fav_key(svc)
         if key not in self.favs:
             path = os.path.join(CACHE_DIR, "icons", key + ".png")
@@ -1017,6 +1050,8 @@ class Hub(QMainWindow):
         return self.favs[key]
 
     def set_favicon(self, svc, icon, host=""):
+        if svc.get("preset") != "custom":
+            return
         if host_in(host, AUTH_HOSTS):       # don't cache a sign-in page's icon (e.g. Google 'G' for Gmail)
             return
         sizes = icon.availableSizes()
@@ -1407,7 +1442,7 @@ def run(args, cfg):
     last = load_json(STATE_FILE, {}).get("last")
     hub.select(last if last in ids else ids[0])
     hub.start_background()
-    shot = os.environ.get("LITEHUB_SHOT")
+    shot = os.environ.get("TESSERA_SHOT")
     if shot:      # developer aid: save window screenshots (current theme, then toggled) and quit
         def snap(n):
             hub.grab().save("%s-%d.png" % (shot, n))
@@ -1438,6 +1473,7 @@ def main():
             shutil.rmtree(d, ignore_errors=True)
         print("%s data cleared (config kept in %s)" % (APP_NAME, CONFIG_DIR))
         return 0
+    migrate_legacy()
     cfg = json.loads(json.dumps(DEFAULTS))
     cfg.update(load_json(CONFIG_FILE, {}))
     apply_chromium_flags(cfg)

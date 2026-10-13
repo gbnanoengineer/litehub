@@ -34,8 +34,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: litehub.flatpak
-          manifest-path: packaging/flatpak/io.github.gbnanoengineer.LiteHub.yml
+          bundle: tessera.flatpak
+          manifest-path: packaging/flatpak/io.github.gbnanoengineer.Tessera.yml
           cache: false
 
   release:

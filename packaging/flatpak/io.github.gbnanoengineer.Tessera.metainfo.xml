@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.gbnanoengineer.LiteHub</id>
-  <name>LiteHub</name>
+  <id>io.github.gbnanoengineer.Tessera</id>
+  <name>Tessera</name>
   <summary>Lightweight all-in-one hub for WhatsApp, Slack, Discord, Gmail and more</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
@@ -10,9 +10,9 @@
     <p>One window for many web services, each instance with its own isolated login: several WhatsApps (linked-device QR login), Gmails, Outlooks, Telegram, Slack, Discord, Teams, Messenger and custom sites.</p>
     <p>Chromium engine with calls, video and screen sharing, a shared download manager, per-app notifications, tray badge, dark/light themes and custom CSS/JS. Unofficial; not affiliated with any of these services.</p>
   </description>
-  <launchable type="desktop-id">io.github.gbnanoengineer.LiteHub.desktop</launchable>
-  <url type="homepage">https://github.com/gbnanoengineer/litehub</url>
+  <launchable type="desktop-id">io.github.gbnanoengineer.Tessera.desktop</launchable>
+  <url type="homepage">https://github.com/gbnanoengineer/tessera</url>
   <content_rating type="oars-1.1"/>
-  <provides><binary>litehub</binary></provides>
-  <releases><release version="0.4.0" date="2026-10-14"/></releases>
+  <provides><binary>tessera</binary></provides>
+  <releases><release version="0.5.0" date="2026-10-14"/></releases>
 </component>

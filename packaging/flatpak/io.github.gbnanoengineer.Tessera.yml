@@ -1,8 +1,8 @@
-app-id: io.github.gbnanoengineer.LiteHub
+app-id: io.github.gbnanoengineer.Tessera
 runtime: org.kde.Platform
 runtime-version: '6.8'
 sdk: org.kde.Sdk
-command: litehub
+command: tessera
 finish-args:
   - --share=network
   - --share=ipc
@@ -21,15 +21,15 @@ modules:
       build-args:
         - --share=network      # fine for local/CI builds; Flathub would need pinned wheels (flatpak-pip-generator)
     build-commands:
-      - pip3 install --target=/app/lib/litehub-deps --no-cache-dir PyQt6 PyQt6-WebEngine
-  - name: litehub
+      - pip3 install --target=/app/lib/tessera-deps --no-cache-dir PyQt6 PyQt6-WebEngine
+  - name: tessera
     buildsystem: simple
     sources:
       - type: dir
         path: ../..
     build-commands:
-      - install -Dm755 src/litehub.py /app/lib/litehub/litehub.py
-      - install -Dm755 packaging/flatpak/litehub-launcher.sh /app/bin/litehub
-      - install -Dm644 packaging/flatpak/io.github.gbnanoengineer.LiteHub.desktop /app/share/applications/io.github.gbnanoengineer.LiteHub.desktop
-      - install -Dm644 packaging/litehub.svg /app/share/icons/hicolor/scalable/apps/io.github.gbnanoengineer.LiteHub.svg
-      - install -Dm644 packaging/flatpak/io.github.gbnanoengineer.LiteHub.metainfo.xml /app/share/metainfo/io.github.gbnanoengineer.LiteHub.metainfo.xml
+      - install -Dm755 src/tessera.py /app/lib/tessera/tessera.py
+      - install -Dm755 packaging/flatpak/tessera-launcher.sh /app/bin/tessera
+      - install -Dm644 packaging/flatpak/io.github.gbnanoengineer.Tessera.desktop /app/share/applications/io.github.gbnanoengineer.Tessera.desktop
+      - install -Dm644 packaging/tessera.svg /app/share/icons/hicolor/scalable/apps/io.github.gbnanoengineer.Tessera.svg
+      - install -Dm644 packaging/flatpak/io.github.gbnanoengineer.Tessera.metainfo.xml /app/share/metainfo/io.github.gbnanoengineer.Tessera.metainfo.xml

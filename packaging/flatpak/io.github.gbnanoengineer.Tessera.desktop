@@ -1,16 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=LiteHub
+Name=Tessera
 GenericName=Messenger hub
 Comment=Lightweight all-in-one hub: WhatsApp, Telegram, Slack, Discord, Gmail, Outlook, Teams
-Exec=litehub
-Icon=litehub
+Exec=tessera
+Icon=io.github.gbnanoengineer.Tessera
 Terminal=false
 Categories=Network;InstantMessaging;Chat;Email;
 Keywords=whatsapp;telegram;slack;discord;gmail;outlook;teams;chat;
-StartupWMClass=litehub
-Actions=Minimized;
-
-[Desktop Action Minimized]
-Name=Start minimised
-Exec=litehub --minimized
+StartupWMClass=io.github.gbnanoengineer.Tessera

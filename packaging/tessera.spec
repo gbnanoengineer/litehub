@@ -1,9 +1,9 @@
-Name:           litehub
-Version:        0.4.0
+Name:           tessera
+Version:        0.5.0
 Release:        1%{?dist}
 Summary:        Lightweight all-in-one messenger hub (WhatsApp, Slack, Discord, Gmail, ...)
 License:        MIT
-URL:            https://github.com/gbnanoengineer/litehub
+URL:            https://github.com/gbnanoengineer/tessera
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 BuildRequires:  desktop-file-utils
@@ -26,21 +26,21 @@ Unofficial; not affiliated with any of these services.
 %autosetup
 
 %install
-install -Dm755 src/litehub.py %{buildroot}%{_bindir}/litehub
-install -Dm644 packaging/litehub.desktop %{buildroot}%{_datadir}/applications/litehub.desktop
-install -Dm644 packaging/litehub.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/litehub.svg
+install -Dm755 src/tessera.py %{buildroot}%{_bindir}/tessera
+install -Dm644 packaging/tessera.desktop %{buildroot}%{_datadir}/applications/tessera.desktop
+install -Dm644 packaging/tessera.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/tessera.svg
 install -Dm644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 
 %check
-desktop-file-validate %{buildroot}%{_datadir}/applications/litehub.desktop
+desktop-file-validate %{buildroot}%{_datadir}/applications/tessera.desktop
 
 %files
 %license LICENSE
 %doc README.md
-%{_bindir}/litehub
-%{_datadir}/applications/litehub.desktop
-%{_datadir}/icons/hicolor/scalable/apps/litehub.svg
+%{_bindir}/tessera
+%{_datadir}/applications/tessera.desktop
+%{_datadir}/icons/hicolor/scalable/apps/tessera.svg
 
 %changelog
-* Wed Oct 14 2026 gbnanoengineer <gbnanoengineer@users.noreply.github.com> - 0.4.0-1
-- Qt/Chromium engine, multi-account services, themes, shared download manager
+* Wed Oct 14 2026 gbnanoengineer <gbnanoengineer@users.noreply.github.com> - 0.5.0-1
+- Renamed to Tessera; real brand logos; Qt/Chromium engine, multi-account services, themes
