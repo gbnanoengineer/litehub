@@ -1,0 +1,15 @@
+Package: litehub
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.10), python3-pyqt6, python3-pyqt6.qtwebengine, qt6-svg-plugins, libnotify-bin, xdg-utils
+Recommends: xdg-desktop-portal, pipewire, gnome-shell-extension-appindicator
+Maintainer: gbnanoengineer <gbnanoengineer@users.noreply.github.com>
+Description: Lightweight all-in-one messenger hub (WhatsApp, Slack, Discord, Gmail, ...)
+ One window for many web services, each instance with its own isolated login:
+ several WhatsApps (linked-device QR login), Gmails, Outlooks, Telegram, Slack,
+ Discord, Teams, Messenger and any custom site. Chromium (Qt WebEngine) engine
+ with working calls, video and screen sharing; shared download manager with
+ Open buttons; tray, notifications, per-service custom CSS/JS; services can
+ sleep to save RAM. Unofficial; not affiliated with any of these services.
