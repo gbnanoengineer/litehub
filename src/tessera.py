@@ -456,7 +456,7 @@ class ServiceView:
         prof.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
         prof.setHttpCacheType(QWebEngineProfile.HttpCacheType.DiskHttpCache)
         prof.setHttpCacheMaximumSize(150 * 1024 * 1024)
-        prof.setHttpUserAgent(re.sub(r"\s*QtWebEngine/\S+", "", prof.httpUserAgent()))
+        prof.setHttpUserAgent(self.svc.get("ua") or re.sub(r"\s*QtWebEngine/\S+", "", prof.httpUserAgent()))
         prof.setSpellCheckEnabled(bool(cfg["spellcheck"]))
         if cfg["spellcheck"]:
             prof.setSpellCheckLanguages(["en-US"])
@@ -1269,6 +1269,7 @@ class Hub(QMainWindow):
         a.toggled.connect(lambda v: self.set_service_notifications(s, v))
         m.addSeparator()
         m.addAction("Rename…", lambda: self.rename_service(sid))
+        m.addAction("Custom user agent…", lambda: self.set_user_agent(sid))
         m.addAction("Edit this service's CSS", lambda: self.open_path(os.path.join(SVC_STYLE_DIR, sid + ".css"), CSS_TEMPLATE))
         m.addAction("Move up", lambda: self.move_service(sid, -1))
         m.addAction("Move down", lambda: self.move_service(sid, 1))
@@ -1289,6 +1290,24 @@ class Hub(QMainWindow):
             s["name"] = text.strip()
             self.save()
             self.rebuild()
+
+    def set_user_agent(self, sid):
+        """Per-service user-agent override (empty = engine default). Your call; use only if a site rejects the engine."""
+        s = self.find(sid)
+        text, ok = QInputDialog.getText(self, "Custom user agent",
+                                        "Leave empty for the default (Chromium %s).\nApplies after the service reloads:"
+                                        % (re.search(r"Chrome/(\d+)", QWebEngineProfile.defaultProfile().httpUserAgent() or "") or [0, "?"])[1],
+                                        text=s.get("ua", ""))
+        if ok:
+            s["ua"] = text.strip()
+            if not s["ua"]:
+                s.pop("ua")
+            self.save()
+            sv = self.views[sid]
+            was_current = self.current is sv
+            sv.hibernate()
+            if was_current:
+                self.select(sid)
 
     def remove_service(self, sid):
         s = self.find(sid)
