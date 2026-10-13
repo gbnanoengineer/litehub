@@ -1,0 +1,41 @@
+#!/bin/sh
+# Tessera launcher: keeps a per-user, always-current Chromium engine (PyQt6 + Qt WebEngine) in
+# ~/.local/share/tessera/venv - set up on first run, refreshed at most once a day before the app starts.
+APP="${TESSERA_APP:-/usr/lib/tessera/tessera.py}"
+BASE="${XDG_DATA_HOME:-$HOME/.local/share}/tessera"
+VENV="$BASE/venv"
+STAMP="$BASE/engine-checked"
+PKGS="PyQt6 PyQt6-WebEngine"
+
+note() { command -v notify-send >/dev/null 2>&1 && notify-send -a Tessera -i tessera "$1" "$2"; echo "tessera: $2" >&2; }
+engine_ok() { "$VENV/bin/python" -c "import PyQt6.QtWebEngineWidgets" >/dev/null 2>&1; }
+pip_upgrade() { "$VENV/bin/pip" install -q --disable-pip-version-check -U $PKGS; }
+
+setup_engine() {
+    mkdir -p "$BASE" && rm -rf "$VENV"
+    if python3 -m venv "$VENV" && pip_upgrade; then
+        touch "$STAMP"
+    else
+        rm -rf "$VENV"
+        return 1
+    fi
+}
+
+case "$1" in
+    --setup-engine)   engine_ok && exit 0; setup_engine; exit $? ;;
+    --update-engine)  engine_ok || setup_engine; pip_upgrade && touch "$STAMP"; "$VENV/bin/pip" list 2>/dev/null | grep -i "^PyQt6"; exit $? ;;
+esac
+
+if ! engine_ok; then
+    note "Tessera" "Setting up the browser engine (one-time download, ~250 MB)…"
+    if setup_engine; then note "Tessera" "Engine ready."; else
+        note "Tessera" "Could not download the engine (offline?). Using system PyQt6 if installed."
+    fi
+elif [ -z "$(find "$STAMP" -mtime -1 2>/dev/null)" ] && ! pgrep -f "tessera.py" >/dev/null 2>&1; then
+    # newest Chromium once a day, only while no Tessera is running (never swap files under a live app)
+    pip_upgrade >/dev/null 2>&1 && touch "$STAMP"
+fi
+
+PY=python3
+engine_ok && PY="$VENV/bin/python"
+exec "$PY" "$APP" "$@"

@@ -18,11 +18,16 @@ Messenger, any custom site. Qt + Chromium engine (no Electron). Unofficial.
 Shortcuts: Alt+1..9 switch service, Ctrl+Tab next, Ctrl+R reload, Ctrl+/- zoom, Ctrl+Q quit.
 Tray icon on GNOME needs the AppIndicator extension.
 
+## Always the latest engine, auto-updating
+The `.deb` downloads the current Chromium (PyQt6 + Qt WebEngine) into `~/.local/share/tessera/venv` at install time and
+refreshes it automatically (at most once a day, before the app starts). Force it with `tessera --update-engine`.
+Tessera itself shows a notification when a newer GitHub release exists (`check_updates` in config.json).
+
 ## Install
 | Format | Command |
 |---|---|
-| Ubuntu/Debian `.deb` | `sudo apt install ./tessera_0.5.0_all.deb` |
-| Fedora/RHEL `.rpm` | `sudo dnf install ./tessera-0.5.0-1.noarch.rpm` |
+| Ubuntu/Debian `.deb` | `sudo apt install ./tessera_0.6.0_all.deb` |
+| Fedora/RHEL `.rpm` | `sudo dnf install ./tessera-0.6.0-1.noarch.rpm` |
 | Flatpak | `flatpak install --user ./tessera.flatpak` then `flatpak run io.github.gbnanoengineer.Tessera` |
 
 Packages are built by GitHub Actions on every push (Actions tab > artifacts) and attached to a release when you push a `v*` tag.

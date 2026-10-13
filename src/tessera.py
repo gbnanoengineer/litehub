@@ -13,7 +13,9 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
+import urllib.request
 import uuid
 from urllib.parse import urlparse
 
@@ -34,7 +36,8 @@ from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialo
 APP_NAME = "Tessera"          # <- rename the app here (also see build.sh / packaging/)
 APP_SLUG = "tessera"
 APP_ID = "io.github.tessera"
-VERSION = "0.5.0"
+REPO = "gbnanoengineer/tessera"
+VERSION = "0.6.0"
 ICON_NAME = os.environ.get("FLATPAK_ID", APP_SLUG)   # Flatpak installs icon/desktop file under its app id
 
 HOME = os.path.expanduser("~")
@@ -96,6 +99,7 @@ DEFAULTS = {
     "hibernate_minutes": 30,      # idle services NOT set to "keep running" are unloaded; 0 = never
     "inject_css": True,
     "inject_js": True,
+    "check_updates": True,         # tell me when a new Tessera release is on GitHub
 }
 
 CSS_TEMPLATE = """/* %s custom CSS - injected into every service. Edit, then Ctrl+R.
@@ -912,6 +916,8 @@ class Prefs(QDialog):
 
 
 class Hub(QMainWindow):
+    update_found = pyqtSignal(str, str)
+
     def __init__(self, args, cfg):
         super().__init__()
         self.args, self.cfg = args, cfg
@@ -969,6 +975,9 @@ class Hub(QMainWindow):
         self.shortcuts()
         self.rebuild()
         self.apply_theme()
+        self.update_found.connect(self.on_update_found)
+        if cfg["check_updates"]:
+            threading.Thread(target=self.check_update, daemon=True).start()
         QTimer(self, interval=60000, timeout=self.hibernate_tick).start()
     def build_welcome(self):
         w = QWidget()
@@ -1183,6 +1192,26 @@ class Hub(QMainWindow):
             self.tray.setToolTip("%s — %d unread" % (APP_NAME, total) if total else APP_NAME)
             self.tray.setIcon(self.tray_icon(total))
 
+    def check_update(self):
+        """Background: compare with the latest GitHub release (tags like v0.5.1)."""
+        try:
+            req = urllib.request.Request("https://api.github.com/repos/%s/releases/latest" % REPO,
+                                         headers={"User-Agent": APP_SLUG})
+            data = json.load(urllib.request.urlopen(req, timeout=10))
+            tag = data["tag_name"].lstrip("v")
+            newer = tuple(int(x) for x in tag.split(".")) > tuple(int(x) for x in VERSION.split("."))
+            if newer and load_json(STATE_FILE, {}).get("update_notified") != tag:
+                self.update_found.emit(tag, data.get("html_url", "https://github.com/%s/releases" % REPO))
+        except (OSError, ValueError, KeyError):
+            pass
+
+    def on_update_found(self, tag, url):
+        st = load_json(STATE_FILE, {})
+        st["update_notified"] = tag
+        save_json(STATE_FILE, st)
+        self.notifier.notify("%s %s is available" % (APP_NAME, tag), "You have %s. Click to open the download page." % VERSION,
+                             [("open", "Download")], lambda _a: open_url(url), timeout=15000)
+
     def tray_icon(self, n):
         base = self.icon.pixmap(64, 64)
         if not n or base.isNull():
@@ -1385,7 +1414,7 @@ class Hub(QMainWindow):
             self.restart()
 
     def restart(self):
-        QProcess.startDetached("sh", ["-c", 'sleep 1; exec "$0"', os.path.abspath(sys.argv[0])])
+        QProcess.startDetached("sh", ["-c", 'sleep 1; exec "$0" "$1"', sys.executable, os.path.abspath(sys.argv[0])])
         self.quit_app()
 
     @staticmethod
@@ -1442,15 +1471,16 @@ def run(args, cfg):
     DPR = max(1.0, app.primaryScreen().devicePixelRatio())
 
     # single instance: a second launch just raises the first
+    instance = os.environ.get("TESSERA_INSTANCE", APP_ID)     # override only for side-by-side testing
     sock = QLocalSocket()
-    sock.connectToServer(APP_ID)
+    sock.connectToServer(instance)
     if sock.waitForConnected(300):
         sock.write(b"show")
         sock.waitForBytesWritten(500)
         return 0
-    QLocalServer.removeServer(APP_ID)
+    QLocalServer.removeServer(instance)
     server = QLocalServer()
-    server.listen(APP_ID)
+    server.listen(instance)
 
     if not cfg["services"]:
         cfg["services"] = [make_service("whatsapp")]

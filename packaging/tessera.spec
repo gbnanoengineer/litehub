@@ -1,5 +1,5 @@
 Name:           tessera
-Version:        0.5.0
+Version:        0.6.0
 Release:        1%{?dist}
 Summary:        Lightweight all-in-one messenger hub (WhatsApp, Slack, Discord, Gmail, ...)
 License:        MIT
@@ -42,5 +42,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/tessera.desktop
 %{_datadir}/icons/hicolor/scalable/apps/tessera.svg
 
 %changelog
-* Wed Oct 14 2026 gbnanoengineer <gbnanoengineer@users.noreply.github.com> - 0.5.0-1
-- Renamed to Tessera; real brand logos; Qt/Chromium engine, multi-account services, themes
+* Wed Oct 14 2026 gbnanoengineer <gbnanoengineer@users.noreply.github.com> - 0.6.0-1
+- Always-current Chromium engine (per-user, auto-updating), update notices, real brand logos
