@@ -14,5 +14,5 @@
   <url type="homepage">https://github.com/gbnanoengineer/tessera</url>
   <content_rating type="oars-1.1"/>
   <provides><binary>tessera</binary></provides>
-  <releases><release version="0.7.0" date="2026-10-14"/></releases>
+  <releases><release version="0.7.1" date="2026-10-14"/></releases>
 </component>

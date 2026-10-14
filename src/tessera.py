@@ -19,6 +19,7 @@ import urllib.request
 import uuid
 from urllib.parse import urlparse
 
+from PyQt6 import QtCore
 from PyQt6.QtCore import (QBuffer, QByteArray, QCoreApplication, QModelIndex, QObject, QPointF, QProcess, QRectF, QSize, Qt,
                           QTimer, QUrl, pyqtSignal)
 from PyQt6.QtGui import (QAction, QColor, QCursor, QDesktopServices, QFont, QIcon, QImageReader, QKeySequence, QPainter,
@@ -38,7 +39,7 @@ APP_NAME = "Tessera"          # <- rename the app here (also see build.sh / pack
 APP_SLUG = "tessera"
 APP_ID = "io.github.tessera"
 REPO = "gbnanoengineer/tessera"
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 ICON_NAME = os.environ.get("FLATPAK_ID", APP_SLUG)   # Flatpak installs icon/desktop file under its app id
 
 HOME = os.path.expanduser("~")
@@ -187,7 +188,7 @@ def find_icon_path():
 
 
 def apply_chromium_flags(cfg):
-    flags = ["--enable-features=WebRTCPipeWireCapturer,UseOzonePlatform",
+    flags = ["--log-level=3", "--enable-features=WebRTCPipeWireCapturer,UseOzonePlatform",
              "--disable-features=Translate,MediaRouter,OptimizationHints",
              "--renderer-process-limit=8"]
     if not cfg["hardware_acceleration"]:
@@ -405,9 +406,15 @@ class PopupPage(QWebEnginePage):
 
 
 class ServicePage(QWebEnginePage):
+    VERBOSE = False
+
     def __init__(self, sv, profile, parent):
         super().__init__(profile, parent)
         self.sv = sv
+
+    def javaScriptConsoleMessage(self, level, message, line, source):
+        if self.VERBOSE:
+            print("js:", message, flush=True)
 
     def acceptNavigationRequest(self, url, ntype, is_main):
         if url.scheme() in ("mailto", "tel", "sms"):
@@ -2179,6 +2186,9 @@ class Hub(QMainWindow):
 
 def run(args, cfg):
     QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    ServicePage.VERBOSE = bool(args.debug)
+    if not args.debug:
+        QtCore.qInstallMessageHandler(lambda *_a: None)
     app = QApplication([sys.argv[0]])
     app.setApplicationName(APP_NAME)
     app.setDesktopFileName(ICON_NAME)

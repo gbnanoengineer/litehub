@@ -1,5 +1,5 @@
 Name:           tessera
-Version:        0.7.0
+Version:        0.7.1
 Release:        1%{?dist}
 Summary:        Lightweight all-in-one messenger hub (WhatsApp, Slack, Discord, Gmail, ...)
 License:        MIT
@@ -43,5 +43,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/tessera.desktop
 %{_datadir}/icons/hicolor/scalable/apps/tessera.svg
 
 %changelog
-* Wed Oct 14 2026 gbnanoengineer <gbnanoengineer@users.noreply.github.com> - 0.7.0-1
+* Wed Oct 14 2026 gbnanoengineer <gbnanoengineer@users.noreply.github.com> - 0.7.1-1
 - Built-in IMAP mail client (Gmail, Outlook, Yahoo, iCloud, any IMAP); web Gmail/Outlook/Teams/Meet removed

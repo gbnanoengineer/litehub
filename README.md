@@ -27,8 +27,8 @@ Tessera itself shows a notification when a newer GitHub release exists (`check_u
 ## Install
 | Format | Command |
 |---|---|
-| Ubuntu/Debian `.deb` | `sudo apt install ./tessera_0.7.0_all.deb` |
-| Fedora/RHEL `.rpm` | `sudo dnf install ./tessera-0.7.0-1.noarch.rpm` |
+| Ubuntu/Debian `.deb` | `sudo apt install ./tessera_0.7.1_all.deb` |
+| Fedora/RHEL `.rpm` | `sudo dnf install ./tessera-0.7.1-1.noarch.rpm` |
 | Flatpak | `flatpak install --user ./tessera.flatpak` then `flatpak run io.github.gbnanoengineer.Tessera` |
 
 Packages are built by GitHub Actions on every push (Actions tab > artifacts) and attached to a release when you push a `v*` tag.
