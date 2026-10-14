@@ -24,6 +24,9 @@ The `.deb` downloads the current Chromium (PyQt6 + Qt WebEngine) into `~/.local/
 refreshes it automatically (at most once a day, before the app starts). Force it with `tessera --update-engine`.
 Tessera itself shows a notification when a newer GitHub release exists (`check_updates` in config.json).
 
+## Download
+Get the latest `.deb`, `.rpm` and `.flatpak` from the **[Releases page](https://github.com/gbnanoengineer/tessera/releases/latest)**.
+
 ## Install
 | Format | Command |
 |---|---|
