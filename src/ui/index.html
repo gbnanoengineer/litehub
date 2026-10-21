@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https: http:; style-src 'self' 'unsafe-inline'">
+<title>Tessera</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<nav id="side">
+  <div id="services"></div>
+  <div class="grow"></div>
+  <button class="tool" id="btn-add" title="Add service (Ctrl+N)" aria-label="Add service">+</button>
+  <button class="tool" id="btn-prefs" title="Preferences (Ctrl+,)" aria-label="Preferences">&#9881;</button>
+</nav>
+<main id="main"><div id="empty"><h2>Tessera</h2><p>Add a service with the + button.</p></div></main>
+<div id="modal" hidden><div id="dialog"></div></div>
+<script src="ui.js"></script>
+</body>
+</html>

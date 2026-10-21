@@ -1,0 +1,61 @@
+{
+  "name": "tessera",
+  "productName": "Tessera",
+  "version": "1.0.0",
+  "description": "Lightweight all-in-one hub for WhatsApp, Telegram, Slack, Discord and any website. Unofficial.",
+  "author": {
+    "name": "gbnanoengineer",
+    "email": "gbnanoengineer@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "icons": "python3 scripts/make-icons.py",
+    "dist": "electron-builder --linux deb rpm AppImage"
+  },
+  "devDependencies": {
+    "electron": "^44.9.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.gbnanoengineer.Tessera",
+    "productName": "Tessera",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "linux": {
+      "category": "Network",
+      "icon": "assets/icons",
+      "executableName": "tessera",
+      "synopsis": "All-in-one messenger hub",
+      "desktop": {
+        "entry": {
+          "Keywords": "whatsapp;telegram;slack;discord;chat;",
+          "StartupWMClass": "tessera"
+        }
+      },
+      "target": [
+        "deb",
+        "rpm",
+        "AppImage"
+      ],
+      "maintainer": "gbnanoengineer <gbnanoengineer@users.noreply.github.com>",
+      "syncDesktopName": true
+    },
+    "deb": {
+      "depends": [
+        "libnotify4",
+        "libsecret-1-0"
+      ]
+    }
+  },
+  "homepage": "https://github.com/gbnanoengineer/tessera",
+  "desktopName": "tessera.desktop"
+}

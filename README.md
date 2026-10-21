@@ -1,41 +1,33 @@
 # Tessera
 
-Lightweight all-in-one hub for Ubuntu: WhatsApp, Telegram, Slack, Discord, Gmail, Outlook, Teams,
-Messenger, any custom site. Qt + Chromium engine (no Electron). Unofficial.
+Lightweight all-in-one hub for Linux: WhatsApp, Telegram, Slack, Discord, Messenger, Instagram or any website.
+Electron + Node, current Chromium engine, no Qt. Unofficial.
 
-- **Mail (built in)**: Gmail, Outlook, Yahoo, iCloud or any IMAP account via an *app password* - folders, read, reply, compose, attachments, delete, unread badge + new-mail notifications. Passwords go to the system keyring (`secret-tool`). HTML mail is shown without scripts or remote content. (Google/Microsoft block embedded web sign-in, so there are no Gmail/Outlook/Teams web tiles.)
+- **Looks like real Chrome**: the engine reports a normal Chrome user agent and client hints, so sites do not say
+  "unsupported browser". WebRTC calls, video and H.264 work; screen share uses the desktop portal on Wayland.
+- **Google apps, one login**: add Gmail, Google Meet, Calendar and Drive; when you add a second Google app, pick *Same login as Gmail* and you sign in once. Choose *New account* to keep another Google account separate. Gmail shows its inbox unread count.
 - **Multiple accounts**: add the same service many times (`+`, Ctrl+N); each has an isolated login.
-- **WhatsApp**: link as a companion device (phone > Settings > Linked devices > scan QR).
-- **Calls / video / screen share**: Chromium WebRTC; screen picker appears when a site asks.
-- **Theme**: dark / light / system (sun/moon button in the sidebar, or Preferences). Real site icons are used for each service.
-- **Notifications per app**: right-click a service (or tray > *Notifications from…*) to choose which apps may notify you. The tray icon shows an unread badge; its menu lists every service with unread counts and opens it on click.
-- **Downloads**: one shared manager (Ctrl+Shift+D) with Open / Show in folder; notification has an Open button.
 - **Low RAM**: services load lazily; right-click a service > *Sleep*, or untick *Keep running in background*
   and it unloads automatically after N idle minutes (Preferences).
-- **Customise**: Preferences (Ctrl+,), `~/.config/tessera/config.json`, global `custom.css`/`custom.js`,
-  per-service `~/.config/tessera/services/<id>.css|js`. Rename the app: change `APP_NAME` in `src/tessera.py`.
-- Flags: `--minimized`, `--debug`, `--reset` (wipes all logins).
+- **Tray + badges**: unread counts from page titles on each service icon, on the tray icon and in its menu.
+- **Per-app notifications**, downloads to `~/Downloads` with an Open-folder notification, dark/light/system theme.
+- **Customise**: global `custom.css` and per-service `services/<id>.css` in `~/.config/tessera/`.
 
-Shortcuts: Alt+1..9 switch service, Ctrl+Tab next, Ctrl+R reload, Ctrl+/- zoom, Ctrl+Q quit.
-Tray icon on GNOME needs the AppIndicator extension.
+Shortcuts: Alt+1..9 switch service, Ctrl+Tab next, Ctrl+R reload, Ctrl+/- zoom, Ctrl+, preferences, F12 devtools, Ctrl+Q quit.
+Flags: `--minimized`, `--tessera-debug`. Tray icon on GNOME needs the AppIndicator extension.
 
-## Always the latest engine, auto-updating
-The `.deb` downloads the current Chromium (PyQt6 + Qt WebEngine) into `~/.local/share/tessera/venv` at install time and
-refreshes it automatically (at most once a day, before the app starts). Force it with `tessera --update-engine`.
-Tessera itself shows a notification when a newer GitHub release exists (`check_updates` in config.json).
+Not in 1.0: the built-in IMAP mail client from the Qt versions (0.x).
 
-## Download
-Get the latest `.deb`, `.rpm` and `.flatpak` from the **[Releases page](https://github.com/gbnanoengineer/tessera/releases/latest)**.
+## Develop
+```sh
+npm install
+npm start            # run
+npm run icons        # regenerate assets/icons (needs python3-pil)
+npm run dist         # .deb, .rpm and .AppImage in dist/
+```
 
 ## Install
-| Format | Command |
-|---|---|
-| Ubuntu/Debian `.deb` | `sudo apt install ./tessera_0.7.1_all.deb` |
-| Fedora/RHEL `.rpm` | `sudo dnf install ./tessera-0.7.1-1.noarch.rpm` |
-| Flatpak | `flatpak install --user ./tessera.flatpak` then `flatpak run io.github.gbnanoengineer.Tessera` |
-
-Packages are built by GitHub Actions on every push (Actions tab > artifacts) and attached to a release when you push a `v*` tag.
-Local builds: `./build.sh` (deb), `./build-rpm.sh` (rpm, needs `rpm`), flatpak: `flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.github.gbnanoengineer.Tessera.yml`.
+Download the `.deb`, `.rpm` or `.AppImage` from the Releases page, then e.g. `sudo apt install ./tessera_1.0.0_amd64.deb`.
 
 ## License
 MIT
